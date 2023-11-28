@@ -1,6 +1,4 @@
 import asyncio
-from dataclasses import dataclass
-from typing import Any, Coroutine, Dict
 
 class _Sleeper:
     def __await__(self):
@@ -13,30 +11,24 @@ class _skip:
     def __await__(self):
         yield
 
-@dataclass
-class _Task:
-    coroutine: Coroutine
-    last_value: Any
-
 class WakeupLoop:
     def __init__(self):
-        self._active_tasks: Dict[Any, _Task] = {}
-        self._sleeping_tasks: Dict[Any, _Task] = {}
+        self._active_tasks = {}
+        self._sleeping_tasks = {}
 
     def add_task(self, key, coroutine):
-        self._active_tasks[key] = _Task(coroutine, last_value=None)
+        self._active_tasks[key] = coroutine
 
     def wake_up(self, key):
-        task = self._sleeping_tasks.pop(key)
-        self._active_tasks[key] = task
+        coroutine = self._sleeping_tasks.pop(key)
+        self._active_tasks[key] = coroutine
 
     async def run(self):
         while True:
             new_active_tasks = {}
             while self._active_tasks:
                 key, task = self._active_tasks.popitem()
-                result = task.coroutine.send(task.last_value)
-                task.last_value = result
+                result = task.send(None)
                 if isinstance(result, _Sleeper):
                     self._sleeping_tasks[key] = task
                 else:
